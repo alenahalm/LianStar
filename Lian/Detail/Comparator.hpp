@@ -20,10 +20,10 @@ namespace Comparator {
 		bool operator()(const StagePoint& lhs, const StagePoint& rhs) const {
 
 			return (lhs.distance + distanceBetweenPoints(lhs.point, goal)) * KDelta
-				+ (lhs.sumAngles) * KAngle
+				+ (lhs.sumAngles) * KAngle + lhs.wind
 				<
 				(rhs.distance + distanceBetweenPoints(rhs.point, goal)) * KDelta
-				+ (rhs.sumAngles) * KAngle;
+				+ (rhs.sumAngles) * KAngle + rhs.wind;
 		}
 	};
 }

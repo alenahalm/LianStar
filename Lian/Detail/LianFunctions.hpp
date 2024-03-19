@@ -21,6 +21,7 @@
 #include "Path.hpp"
 #include "Geometry.hpp"
 #include "Map.hpp"
+#include "Vector.hpp"
 
 using std::vector;
 using std::map;
@@ -35,6 +36,7 @@ namespace Algorithms {
 			using Algorithms::Graph::Geometry::Point;
 			using Algorithms::Graph::Geometry::StagePoint;
 			using Algorithms::Graph::Geometry::Path;
+			using Algorithms::Graph::Geometry::Vector;
 			using Algorithms::Graph::Geometry::distanceBetweenPoints;
 			using Algorithms::Graph::Geometry::angleBetweenVectors;
 
@@ -48,7 +50,7 @@ namespace Algorithms {
 				return true;
 			}
 
-			void Expand(StagePoint start, Map<cv::Mat> image, StagePoint point, int deltaDist, int deltaAngle, std::set<StagePoint, Comparator::ComparatorStagePoint>& OPEN, const std::unordered_set<StagePoint, Hasher::StagePointHasher>& CLOSE, Point goal, std::map<Point, StagePoint>& mapPath) {
+			void Expand(StagePoint start, Map<cv::Mat> image, StagePoint point, int deltaDist, int deltaAngle, Vector wind, std::set<StagePoint, Comparator::ComparatorStagePoint>& OPEN, const std::unordered_set<StagePoint, Hasher::StagePointHasher>& CLOSE, Point goal, std::map<Point, StagePoint>& mapPath) {
 
 				//std::vector<StagePoint> points;
 
@@ -77,22 +79,14 @@ namespace Algorithms {
 					if (!validPath(points_, image))
 						continue;
 
-					if (CLOSE.contains({midpoint, point.parent, 0.0, 0.0})) {
+					if (CLOSE.contains({midpoint, point.parent, 0.0, 0.0, 0.0})) {
 
 						continue;
 					}
-					/*
-					bool inClose = false;
-					for (auto&& cl : CLOSE) {
-						if (midpoint == cl.point && point.point == cl.parent) {
-							inClose = true;
-							break;
-						}
-					}
-					if (inClose) {
-						continue;
-					}
-					*/
+
+					Vector direction(midpoint.x - point.point.x, - (midpoint.y - point.point.y));
+					double offset = (direction - wind).getMagnitude() - direction.getMagnitude();
+
 
 					//if (mapPath.contains(midpoint) && angle + point.sumAngles <= mapPath.at(midpoint).sumAngles) {
 					if (mapPath.contains(midpoint) && distanceBetweenPoints(point.point, midpoint) + point.distance < mapPath.at(midpoint).distance) {
@@ -101,7 +95,7 @@ namespace Algorithms {
 						mapPath.at(midpoint) = StagePoint(midpoint,
 							point.point,
 							distanceBetweenPoints(point.point, midpoint) + point.distance,
-							point.sumAngles + angle);
+							point.sumAngles + angle, point.wind + offset);
 
 						OPEN.insert(mapPath.at(midpoint));
 						//points.push_back(mapPath.at(midpoint));
@@ -110,7 +104,7 @@ namespace Algorithms {
 						mapPath.insert({ midpoint, StagePoint(midpoint,
 							point.point,
 							distanceBetweenPoints(point.point, midpoint) + point.distance,
-							point.sumAngles + angle) });
+							point.sumAngles + angle, point.wind + offset) });
 
 						OPEN.insert(mapPath.at(midpoint));
 						//points.push_back(mapPath.at(midpoint));
@@ -127,12 +121,12 @@ namespace Algorithms {
 				vector<Point> path;
 				path.push_back(end);
 
+
 				Point current = end;
 
 				while (mapPath.contains(current) && mapPath.at(current).point != start) {
 
 					current = mapPath.at(current).parent;
-
 					path.push_back(current);
 				}
 
@@ -199,6 +193,7 @@ namespace Algorithms {
 				std::cout << "Points: " << path.points.size() << std::endl;	// log in console
 				std::cout << "Length: " << path.distance << std::endl;
 				std::cout << "SumAngles: " << path.sumAngles << std::endl;
+				std::cout << "Wind sum: " << path.windSum << std::endl;
 			}
 
 			void logFile(const std::string& fileName, const Path& path, int deltaDist, int deltaAngle, double codeTime, float KRatioDistance, float KRatioAngle) {

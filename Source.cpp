@@ -10,6 +10,7 @@
 #include "Lian/Detail/Geometry.hpp"
 #include "Lian/Detail/Map.hpp"
 #include "Lian/Detail/LianFunctions.hpp"
+#include "Lian/Detail/Vector.hpp"
 
 #define PATH_IMG "resources/map1k.png"
 #define PATH_IMG_SOURCE "resources/map1k.png"
@@ -58,21 +59,22 @@ int main() {
 
 	// --- testing ---
 
-	StagePoint sP(start, Point(0, 0), 0.0, 0.0);
+	StagePoint sP(start, Point(0, 0), 0.0, 0.0, 0.0);
 	std::vector<StagePoint> close;
 	std::map<Point, StagePoint> mapPath;
 
+	Vector wind(-5, 0);
 
-
+	
 	auto timer = std::chrono::steady_clock::now();
-	auto resPath = Lian(start, goal, mImg, mImgSource, 5, 270);
+	auto resPath = Lian(start, goal, mImg, mImgSource, 25, 25, wind);
 
 	for (auto&& point : resPath) {
-
-		cv::circle(mImg.getMap(), cv::Point(point.x, point.y), 10, cv::Scalar(100, 100, 100), 2);
+		cv::circle(mImg.getMap(), cv::Point(point.x, point.y), 3, cv::Scalar(100, 100, 100), -1);
 	}
-	std::cout << "Time code -> " << std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - timer).count() << std::endl;
 
+	std::cout << "Time code -> " << std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - timer).count() << std::endl;
+	
 	// --- end testing----
 
 	imshow("Display window", img);
