@@ -48,6 +48,12 @@
     <ClInclude Include="Lian\Detail\Comparator.hpp">
       <Filter>Lian\Detail</Filter>
     </ClInclude>
+    <ClInclude Include="Lian\Detail\Vector.hpp">
+      <Filter>Lian\Detail</Filter>
+    </ClInclude>
+    <ClInclude Include="Lian\Detail\WindEffect.hpp">
+      <Filter>Lian\Detail</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">

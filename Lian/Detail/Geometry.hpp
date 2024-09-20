@@ -6,12 +6,19 @@
 #include <math.h>
 
 #include "../Point.hpp"
+#include "Vector.hpp"
 
 namespace Algorithms {
 
 	namespace Graph {
 
 		namespace Geometry {
+
+			Vector makeWindVector(double scale, double speed, Vector direction) {
+				double offset = speed * scale / 1.5 / direction.getMagnitude();
+				direction *= offset;
+				return direction;
+			}
 
 			double distanceBetweenPoints(Point p1, Point p2) {
 
@@ -39,7 +46,6 @@ namespace Algorithms {
 
 				std::vector<Point> points;
 				for (int i = 1; i < nb_points + 1; ++i) {
-
 					points.emplace_back(int(p1.x + i * x_spacing), int(p1.y + i * y_spacing));
 				}
 
@@ -48,13 +54,21 @@ namespace Algorithms {
 
 			std::vector<Point> midpoint(Point point, int r) {
 
+				
 				std::vector<Point> points;
+				if (r == 0) {
+					return points;
+				}
+
 				int x_centre = point.x;
 				int y_centre = point.y;
 
 				int x = r;
 				int y = 0;
 				points.emplace_back(x + x_centre, y + y_centre);
+				if (r == 0) {
+					return points;
+				}
 				if (r > 0) {
 					points.emplace_back(-x + x_centre, -y + y_centre);
 					points.emplace_back(y + x_centre, x + y_centre);

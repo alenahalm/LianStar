@@ -79,19 +79,25 @@ namespace Algorithms {
 					if (!validPath(points_, image))
 						continue;
 
-					if (CLOSE.contains({midpoint, point.parent, 0.0, 0.0, 0.0})) {
+					if (CLOSE.contains({ midpoint, point.parent, 0.0, 0.0, 0.0 })) {
 
 						continue;
 					}
 
-					Vector direction(midpoint.x - point.point.x, - (midpoint.y - point.point.y));
-					double offset = (direction - wind).getMagnitude() - direction.getMagnitude();
+					double offset;
 
+					if (image.getMap().at<uchar>(cv::Point(midpoint.x, midpoint.y)) == 100) {
+						offset = 0;
+					}
+					else {
+						Vector direction(midpoint.x - point.point.x, -(midpoint.y - point.point.y));
+						offset = (direction - wind).getMagnitude() - direction.getMagnitude();
+					}
 
-					//if (mapPath.contains(midpoint) && angle + point.sumAngles <= mapPath.at(midpoint).sumAngles) {
-					if (mapPath.contains(midpoint) && distanceBetweenPoints(point.point, midpoint) + point.distance < mapPath.at(midpoint).distance) {
+					if (mapPath.contains(midpoint) && angle + point.sumAngles <= mapPath.at(midpoint).sumAngles) {
+					//if (mapPath.contains(midpoint) && distanceBetweenPoints(point.point, midpoint) + point.distance < mapPath.at(midpoint).distance) {
 						OPEN.erase(mapPath.at(midpoint));
-						
+
 						mapPath.at(midpoint) = StagePoint(midpoint,
 							point.point,
 							distanceBetweenPoints(point.point, midpoint) + point.distance,
@@ -164,7 +170,7 @@ namespace Algorithms {
 				auto path = unwindingPath(mapPath, start, current);
 				for (auto&& point : path) {
 
-					cv::circle(imgCopy, cv::Point(point.x, point.y), RADIUS +1, cv::Scalar(100, 100, 100), THICKNESS);
+					cv::circle(imgCopy, cv::Point(point.x, point.y), RADIUS +1, cv::Scalar(200, 0, 0), THICKNESS);
 				}
 
 				cv::circle(imgCopy, cv::Point(goal.x, goal.y), RADIUS, cv::Scalar(), THICKNESS);
@@ -196,7 +202,7 @@ namespace Algorithms {
 				std::cout << "Wind sum: " << path.windSum << std::endl;
 			}
 
-			void logFile(const std::string& fileName, const Path& path, int deltaDist, int deltaAngle, double codeTime, float KRatioDistance, float KRatioAngle) {
+			void logFile(const std::string& fileName, const Path& path, int deltaDist, int deltaAngle, Vector direction, double codeTime, float KRatioDistance, float KRatioAngle) {
 
 				std::ofstream outLogFile(fileName);
 
@@ -215,6 +221,9 @@ namespace Algorithms {
 				outLogFile << "Path characteristics:\n";
 				outLogFile << "Distance -> " << std::to_string(path.distance) << "px\n";
 				outLogFile << "Sum angles -> " << std::to_string(path.sumAngles) << "°\n";
+				outLogFile << "Wind sum -> " << std::to_string(path.windSum) << "°\n";
+				outLogFile << "Wind vector -> " << direction.to_string() << "°\n";
+
 
 				outLogFile << "----- ----- -----" << "\n";
 

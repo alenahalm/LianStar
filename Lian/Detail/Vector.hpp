@@ -22,6 +22,10 @@ namespace Algorithms {
 					x += rhs.x;
 					y += rhs.y;
 				}
+				auto operator *= (double num) {
+					x *= num;
+					y *= num;
+				}
 
 				auto operator - (const Vector& rhs) {
 					return Vector(x - rhs.x, y - rhs.y);
@@ -40,6 +44,10 @@ namespace Algorithms {
 				}
 				double getY() {
 					return y;
+				}
+
+				std::string to_string() {
+					return "(" + std::to_string(x) + ", " + std::to_string(y) + ")";
 				}
 
 				void print() {

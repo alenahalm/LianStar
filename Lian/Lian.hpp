@@ -18,11 +18,12 @@
 #include "Detail/Path.hpp"
 #include "Detail/Map.hpp"
 #include "Detail/Vector.hpp"
+#include "Detail/WindEffect.hpp"
 
 #include "detail/Geometry.hpp"
 #include "Detail/LianFunctions.hpp"
 
-#define DIR_RESULTS "./results/"
+#define DIR_RESULTS "./results/star_"
 
 #define K_DELTA 1
 #define K_ANGLE 0
@@ -43,13 +44,14 @@ namespace Algorithms {
 			using LianFunctions::drawStateOnImage;
 			using LianFunctions::logConsole;
 			using LianFunctions::logFile;
+			using WindEffects::makeShade;
 
-			vector<Point> Lian(Point start_, Point goal_, Map<cv::Mat> img, Map<cv::Mat> drawImg, int deltaDist, int deltaAngle, Vector wind) {
+			vector<Point> Lian(Point start_, Point goal_, Map<cv::Mat> img, Map<cv::Mat> drawImg, int deltaDist, int deltaAngle, Vector wind, double scale) {
+
 
 				Comparator::goal = goal_;
 				Comparator::KDelta = K_DELTA;
 				Comparator::KAngle = K_ANGLE;
-
 
 				set<StagePoint, Comparator::ComparatorStagePoint> OPEN;
 				unordered_set<StagePoint, Hasher::StagePointHasher> CLOSE;
@@ -77,7 +79,7 @@ namespace Algorithms {
 				bool isAction{ true };
 				//std::thread t([&isAction, start_, goal_, &currentSPoint, img, &OPEN, &CLOSE, &mapPath]() {
 				//showImageThread(isAction, start_, goal_, currentSPoint.point, img, OPEN, CLOSE, mapPath);
-					//});
+				//});
 
 				auto startTimer = std::chrono::steady_clock::now();
 				auto timer = std::chrono::steady_clock::now();
@@ -96,6 +98,8 @@ namespace Algorithms {
 						if (currentSPoint.sumAngles <= bestPath.sumAngles) {
 
 							++pathCounter;
+							
+							std::string note = "no_angle";
 
 							auto points = unwindingPath(mapPath, start_, goal_);	// save path
 							bestPath = Path(points, currentSPoint.distance, currentSPoint.sumAngles, currentSPoint.wind);
@@ -103,13 +107,13 @@ namespace Algorithms {
 							logConsole(bestPath);	// log in console
 
 							double timeCode = std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - startTimer).count() / 1000;	// time in seconds
-							logFile(DIR_RESULTS + std::string("Path_") + std::to_string(pathCounter) + ".txt", bestPath, deltaDist, deltaAngle, timeCode, K_DELTA, K_ANGLE);	// log in file
+							logFile(DIR_RESULTS + note + ".txt", bestPath, deltaDist, deltaAngle, wind, timeCode, K_DELTA, K_ANGLE);	// log in file
 
 							auto imgPathSource = drawStateOnImage(start_, goal_, currentSPoint.point, drawImg, false, {}, {}, mapPath);
-							saveImage(DIR_RESULTS + std::string("Path_") + std::to_string(pathCounter) + ".bmp", imgPathSource);	// save source image with path
+							saveImage(DIR_RESULTS + note + ".bmp", imgPathSource);	// save source image with path
 
 							auto imgPath = drawStateOnImage(start_, goal_, currentSPoint.point, img, true, {}, {}, mapPath);
-							saveImage(DIR_RESULTS + std::string("Path_") + std::to_string(pathCounter) + ".png", imgPath);	// save processing image with path
+							saveImage(DIR_RESULTS + note + ".png", imgPath);	// save processing image with path
 
 							return bestPath.points;
 						}
