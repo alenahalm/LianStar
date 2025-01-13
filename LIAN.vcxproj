@@ -162,6 +162,8 @@
     <ClInclude Include="Lian\Detail\Map.hpp" />
     <ClInclude Include="Lian\Detail\Path.hpp" />
     <ClInclude Include="Lian\Detail\StagePoint.hpp" />
+    <ClInclude Include="Lian\Detail\Vector.hpp" />
+    <ClInclude Include="Lian\Detail\WindEffect.hpp" />
     <ClInclude Include="Lian\Lian.hpp" />
     <ClInclude Include="Lian\Point.hpp" />
   </ItemGroup>

@@ -1,5 +1,5 @@
 #include <iostream>
-
+#include <array>
 #include <chrono>
 
 #include <opencv2/opencv.hpp>
@@ -12,8 +12,11 @@
 #include "Lian/Detail/LianFunctions.hpp"
 #include "Lian/Detail/Vector.hpp"
 
-#define PATH_IMG "resources/map1k.png"
-#define PATH_IMG_SOURCE "resources/map1k.png"
+
+#define PATH_IMG "resources/irk.png"
+#define PATH_IMG_SOURCE "resources/irk.png"
+
+
 
 using namespace std;
 using Algorithms::Graph::Lian::Lian;
@@ -21,63 +24,60 @@ using namespace Algorithms::Graph::Geometry;
 using namespace Algorithms::Graph::Map;
 using Algorithms::Graph::LianFunctions::Expand;
 
+
+using Algorithms::Graph::Lian::lineOfSight;
+using Algorithms::Graph::LianFunctions::validPath;
+
+
+
 int main() {
 
-	cv::Mat rawImg = cv::imread(PATH_IMG, cv::IMREAD_COLOR);
-	cv::Mat rawImgSource = cv::imread(PATH_IMG_SOURCE, cv::IMREAD_COLOR);
+	// --- initializing the matrix ---
 
-	if (rawImg.empty()) {
+	int size_x = 1000, size_y = 1000, size_z = 1000;
 
-		std::cerr << "Image not found!" << std::endl;
+	//double matrix[size][size][size];
 
-		return -1;
+	double*** matrix = new double** [size_x];
+	for (int i = 0; i < size_x; ++i) {
+		matrix[i] = new double* [size_y];
+		for (int j = 0; j < size_y; ++j) {
+			matrix[i][j] = new double[size_z]();
+		}
 	}
 
-	cv::Mat img;
-
-	cv::cvtColor(rawImg, img, cv::COLOR_BGR2GRAY);
-
-	img.setTo(255, img > 200);
-	img.setTo(0, img != 255);
-
-	Map mImg(img);
-	Map mImgSource(rawImgSource);
+	for (int i = 0; i < size_x; i++) {
+		for (int j = 0; j < size_y; j++) {
+			for (int k = 0; k < size_z; k++) {
+				if (i > 200 && i < 350 && j > 200 && j < 350 && k > 200 && k < 350){
+					matrix[i][j][k] = 1;
+				}
+				else {
+					matrix[i][j][k] = 0;
+				}
+			}
+		}
+	}
 	
-	//get value by index
-	//std::cout << std::boolalpha << ((int)mImg.getMap().at<uchar>(cv::Point(168, 305))) << std::endl;
 
-	// for map1k
-	Point start = Point(215, 300);
-	Point goal = Point(1250, 700);
+	// --- variables ---
 
-	// for image1k
-	// Point start = Point(5015, 2142);
-	// Point goal = Point(546, 2730);
-	//Point goal = Point(1120, 552);
-
-	Point point = Point(100, 100);
+	Point start(14, 5, 7);
+	Point goal(450, 450, 450);
 
 	// --- testing ---
 
-	StagePoint sP(start, Point(0, 0), 0.0, 0.0, 0.0);
-	std::vector<StagePoint> close;
-	std::map<Point, StagePoint> mapPath;
-
-	Vector wind(-5, 0);
-
 	
 	auto timer = std::chrono::steady_clock::now();
-	auto resPath = Lian(start, goal, mImg, mImgSource, 25, 25, wind);
+	auto resPath = Lian(start, goal, matrix, size_x, size_y, size_z, 80, 25);
 
-	for (auto&& point : resPath) {
-		cv::circle(mImg.getMap(), cv::Point(point.x, point.y), 3, cv::Scalar(100, 100, 100), -1);
-	}
+
+	
 
 	std::cout << "Time code -> " << std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - timer).count() << std::endl;
 	
 	// --- end testing----
-
-	imshow("Display window", img);
+	
 	int k = cv::waitKey(0);
 
 	return 0;
