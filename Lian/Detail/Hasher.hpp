@@ -22,12 +22,11 @@ namespace Hasher {
 
 			hash_combine<int>(res, sP.point.x);
 			hash_combine<int>(res, sP.point.y);
+			hash_combine<int>(res, sP.point.z);
 
 			hash_combine<int>(res, sP.parent.x);
 			hash_combine<int>(res, sP.parent.y);
-
-			//hash_combine<double>(res, sP.distance);
-			//hash_combine<double>(res, sP.sumAngles);
+			hash_combine<int>(res, sP.parent.z);
 
 			return res;
 		}

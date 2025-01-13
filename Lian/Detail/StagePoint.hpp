@@ -14,10 +14,9 @@ namespace Algorithms {
 
 				double distance;
 				double sumAngles;
-				double wind;
 
-				StagePoint(Point point_, Point parent_, double distance_, double sumAngles_, double wind_)
-					: point(point_), parent(parent_), distance(distance_), sumAngles(sumAngles_), wind(wind_) {};
+				StagePoint(Point point_, Point parent_, double distance_, double sumAngles_)
+					: point(point_), parent(parent_), distance(distance_), sumAngles(sumAngles_) {};
 
 				auto operator<=>(const StagePoint& rhs) const = default;
 			};

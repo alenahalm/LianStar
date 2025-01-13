@@ -23,6 +23,8 @@
 #include "Map.hpp"
 #include "Vector.hpp"
 
+
+
 using std::vector;
 using std::map;
 
@@ -40,17 +42,17 @@ namespace Algorithms {
 			using Algorithms::Graph::Geometry::distanceBetweenPoints;
 			using Algorithms::Graph::Geometry::angleBetweenVectors;
 
-			bool validPath(vector<Point> points, Map<cv::Mat> image) {
+			bool validPath(vector<Point> points, double*** image) {
 
 				for (auto&& point : points) {
-
-					if (!image.isFree(point))
+					if (image[point.x][point.y][point.z] > 0.8) {
 						return false;
+					}
 				}
 				return true;
 			}
 
-			void Expand(StagePoint start, Map<cv::Mat> image, StagePoint point, int deltaDist, int deltaAngle, Vector wind, std::set<StagePoint, Comparator::ComparatorStagePoint>& OPEN, const std::unordered_set<StagePoint, Hasher::StagePointHasher>& CLOSE, Point goal, std::map<Point, StagePoint>& mapPath) {
+			void Expand(StagePoint start, double*** image, int size_x, int size_y, int size_z, StagePoint point, int deltaDist, int deltaAngle, std::set<StagePoint, Comparator::ComparatorStagePoint>& OPEN, const std::unordered_set<StagePoint, Hasher::StagePointHasher>& CLOSE, Point goal, std::map<Point, StagePoint>& mapPath) {
 
 				//std::vector<StagePoint> points;
 
@@ -61,9 +63,11 @@ namespace Algorithms {
 				}
 
 				for (auto midpoint : midpoints) {
-					if (midpoint.x < 0 || image.getMap().size().width <= midpoint.x ||
-						midpoint.y < 0 || image.getMap().size().height <= midpoint.y ||
-						!image.isFree(midpoint)) {
+					
+					if (midpoint.x < 0 || midpoint.x >= size_x ||
+						midpoint.y < 0 || midpoint.y >= size_y ||
+						midpoint.z < 0 || midpoint.z >= size_z ||
+						image[midpoint.x][midpoint.y][midpoint.z] > 0.8) {
 						continue;
 					}
 
@@ -79,20 +83,11 @@ namespace Algorithms {
 					if (!validPath(points_, image))
 						continue;
 
-					if (CLOSE.contains({ midpoint, point.parent, 0.0, 0.0, 0.0 })) {
+					if (CLOSE.contains({ midpoint, point.parent, 0.0, 0.0 })) {
 
 						continue;
 					}
 
-					double offset;
-
-					if (image.getMap().at<uchar>(cv::Point(midpoint.x, midpoint.y)) == 100) {
-						offset = 0;
-					}
-					else {
-						Vector direction(midpoint.x - point.point.x, -(midpoint.y - point.point.y));
-						offset = (direction - wind).getMagnitude() - direction.getMagnitude();
-					}
 
 					if (mapPath.contains(midpoint) && angle + point.sumAngles <= mapPath.at(midpoint).sumAngles) {
 					//if (mapPath.contains(midpoint) && distanceBetweenPoints(point.point, midpoint) + point.distance < mapPath.at(midpoint).distance) {
@@ -101,7 +96,7 @@ namespace Algorithms {
 						mapPath.at(midpoint) = StagePoint(midpoint,
 							point.point,
 							distanceBetweenPoints(point.point, midpoint) + point.distance,
-							point.sumAngles + angle, point.wind + offset);
+							point.sumAngles + angle);
 
 						OPEN.insert(mapPath.at(midpoint));
 						//points.push_back(mapPath.at(midpoint));
@@ -110,7 +105,7 @@ namespace Algorithms {
 						mapPath.insert({ midpoint, StagePoint(midpoint,
 							point.point,
 							distanceBetweenPoints(point.point, midpoint) + point.distance,
-							point.sumAngles + angle, point.wind + offset) });
+							point.sumAngles + angle) });
 
 						OPEN.insert(mapPath.at(midpoint));
 						//points.push_back(mapPath.at(midpoint));
@@ -199,10 +194,9 @@ namespace Algorithms {
 				std::cout << "Points: " << path.points.size() << std::endl;	// log in console
 				std::cout << "Length: " << path.distance << std::endl;
 				std::cout << "SumAngles: " << path.sumAngles << std::endl;
-				std::cout << "Wind sum: " << path.windSum << std::endl;
 			}
 
-			void logFile(const std::string& fileName, const Path& path, int deltaDist, int deltaAngle, Vector direction, double codeTime, float KRatioDistance, float KRatioAngle) {
+			void logFile(const std::string& fileName, const Path& path, int deltaDist, int deltaAngle, double codeTime, float KRatioDistance, float KRatioAngle) {
 
 				std::ofstream outLogFile(fileName);
 
@@ -221,8 +215,6 @@ namespace Algorithms {
 				outLogFile << "Path characteristics:\n";
 				outLogFile << "Distance -> " << std::to_string(path.distance) << "px\n";
 				outLogFile << "Sum angles -> " << std::to_string(path.sumAngles) << "°\n";
-				outLogFile << "Wind sum -> " << std::to_string(path.windSum) << "°\n";
-				outLogFile << "Wind vector -> " << direction.to_string() << "°\n";
 
 
 				outLogFile << "----- ----- -----" << "\n";
@@ -234,7 +226,7 @@ namespace Algorithms {
 				outLogFile << "Points of path:\n";
 				for (auto&& point : path.points) {
 
-					outLogFile << point.x << ", " << point.y << "\n";
+					outLogFile << point.x << " " << point.y << " " << point.z << "\n";
 				}
 				outLogFile << "----- ----- -----" << "\n";
 			}

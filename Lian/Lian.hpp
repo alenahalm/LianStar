@@ -18,15 +18,16 @@
 #include "Detail/Path.hpp"
 #include "Detail/Map.hpp"
 #include "Detail/Vector.hpp"
-#include "Detail/WindEffect.hpp"
 
 #include "detail/Geometry.hpp"
 #include "Detail/LianFunctions.hpp"
 
-#define DIR_RESULTS "./results/star_"
+#define DIR_RESULTS "./results/3d/"
 
 #define K_DELTA 1
-#define K_ANGLE 0
+#define K_ANGLE 0.2
+
+
 
 namespace Algorithms {
 
@@ -44,9 +45,9 @@ namespace Algorithms {
 			using LianFunctions::drawStateOnImage;
 			using LianFunctions::logConsole;
 			using LianFunctions::logFile;
-			using WindEffects::makeShade;
 
-			vector<Point> Lian(Point start_, Point goal_, Map<cv::Mat> img, Map<cv::Mat> drawImg, int deltaDist, int deltaAngle, Vector wind, double scale) {
+
+			vector<Point> Lian(Point start_, Point goal_, double*** img, int size_x, int size_y, int size_z, int deltaDist, int deltaAngle) {
 
 
 				Comparator::goal = goal_;
@@ -59,8 +60,8 @@ namespace Algorithms {
 				//OPEN.reserve(100000);
 				CLOSE.reserve(100000);
 
-				StagePoint start(start_, Point(0, 0), 0.0, 0.0, 0.0),
-					goal(goal_, Point(0, 0), DBL_MAX, DBL_MAX, 0.0);
+				StagePoint start(start_, Point(0, 0, 0), 0.0, 0.0),
+					goal(goal_, Point(0, 0, 0), DBL_MAX, DBL_MAX);
 				OPEN.insert(start);
 
 				std::map<Point, StagePoint> mapPath;
@@ -74,7 +75,7 @@ namespace Algorithms {
 
 				int pathCounter{ 0 };
 				int totalQPath{ 0 };
-				Path bestPath({}, DBL_MAX, DBL_MAX, 0.0);
+				Path bestPath({}, DBL_MAX, DBL_MAX);
 
 				bool isAction{ true };
 				//std::thread t([&isAction, start_, goal_, &currentSPoint, img, &OPEN, &CLOSE, &mapPath]() {
@@ -88,32 +89,35 @@ namespace Algorithms {
 
 					auto current = OPEN.extract(OPEN.begin());
 					currentSPoint = current.value();
-					//if (wind.getMagnitude() != 0) {
-						//std::cout << currentSPoint.wind << std::endl;
-					//}
-					
 
 					if (currentSPoint.point == goal.point) {
 
 						if (currentSPoint.sumAngles <= bestPath.sumAngles) {
 
 							++pathCounter;
+
+							std::string angle_check = "";
+							if (K_ANGLE > 0) {
+								angle_check = "angle";
+							}
 							
-							std::string note = "no_angle";
+							std::string note = std::to_string(size_x) + "_" + std::to_string(deltaDist) + "_" + angle_check;
+							std::cout << "Found path" << std::endl;
+							//std::cout << currentSPoint.point.x << " " << currentSPoint.point.x << " " << currentSPoint.point.x << " " << std::endl;
 
 							auto points = unwindingPath(mapPath, start_, goal_);	// save path
-							bestPath = Path(points, currentSPoint.distance, currentSPoint.sumAngles, currentSPoint.wind);
+							bestPath = Path(points, currentSPoint.distance, currentSPoint.sumAngles);
 
 							logConsole(bestPath);	// log in console
-
+							
 							double timeCode = std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - startTimer).count() / 1000;	// time in seconds
-							logFile(DIR_RESULTS + note + ".txt", bestPath, deltaDist, deltaAngle, wind, timeCode, K_DELTA, K_ANGLE);	// log in file
+							logFile(DIR_RESULTS + note + ".txt", bestPath, deltaDist, deltaAngle, timeCode, K_DELTA, K_ANGLE);	// log in file
 
-							auto imgPathSource = drawStateOnImage(start_, goal_, currentSPoint.point, drawImg, false, {}, {}, mapPath);
-							saveImage(DIR_RESULTS + note + ".bmp", imgPathSource);	// save source image with path
+							//auto imgPathSource = drawStateOnImage(start_, goal_, currentSPoint.point, drawImg, false, {}, {}, mapPath);
+							//saveImage(DIR_RESULTS + note + ".bmp", imgPathSource);	// save source image with path
 
-							auto imgPath = drawStateOnImage(start_, goal_, currentSPoint.point, img, true, {}, {}, mapPath);
-							saveImage(DIR_RESULTS + note + ".png", imgPath);	// save processing image with path
+							//auto imgPath = drawStateOnImage(start_, goal_, currentSPoint.point, img, true, {}, {}, mapPath);
+							//saveImage(DIR_RESULTS + note + ".png", imgPath);	// save processing image with path
 
 							return bestPath.points;
 						}
@@ -124,7 +128,7 @@ namespace Algorithms {
 						std::cout << "Total path found quantity: " << totalQPath << std::endl;
 					}
 
-					Expand(start, img, currentSPoint, deltaDist, deltaAngle, wind, OPEN, CLOSE, goal_, mapPath);
+					Expand(start, img, size_x, size_y, size_z, currentSPoint, deltaDist, deltaAngle, OPEN, CLOSE, goal_, mapPath);
 
 					CLOSE.insert(currentSPoint);
 
@@ -133,7 +137,7 @@ namespace Algorithms {
 
 						std::cout << "Iteration -> " << itCounter << std::endl;
 						// std::cout << "Offset -> " << currentSPoint.wind << std::endl;
-						showImageThread(isAction, start_, goal_, currentSPoint.point, drawImg, OPEN, CLOSE, mapPath);
+						//showImageThread(isAction, start_, goal_, currentSPoint.point, drawImg, OPEN, CLOSE, mapPath);
 						timer = std::chrono::steady_clock::now();
 					}
 
