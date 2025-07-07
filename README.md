@@ -18,9 +18,3 @@ Point goal(450, 450, 450);
 ~~~cpp
 auto resPath = Lian(start, goal, matrix, size_x, size_y, size_z, 80, 25);
 ~~~
-
-## Comparison with original Lian
-Lian in red. Lian* in green.
-
-![image](https://github.com/user-attachments/assets/9677fb90-bff2-4421-bb2c-a410a8de41dd)
-
