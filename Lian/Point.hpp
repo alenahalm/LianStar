@@ -8,7 +8,7 @@ namespace Algorithms {
 
 			struct Point {
 
-				int x, y, z;
+				int x, y;
 
 				auto operator<=>(const Point& rhs) const = default;
 			};

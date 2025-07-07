@@ -1,5 +1,5 @@
 #include <iostream>
-#include <array>
+
 #include <chrono>
 
 #include <opencv2/opencv.hpp>
@@ -11,11 +11,12 @@
 #include "Lian/Detail/Map.hpp"
 #include "Lian/Detail/LianFunctions.hpp"
 #include "Lian/Detail/Vector.hpp"
+#include "Lian/Detail/WindEffect.hpp"
 
 
-#define PATH_IMG "resources/irk.png"
-#define PATH_IMG_SOURCE "resources/irk.png"
-
+// path to images
+#define PATH_IMG "resources/irk.png" // image to analyze
+#define PATH_IMG_SOURCE "resources/irk.png" // image to draw on
 
 
 using namespace std;
@@ -23,61 +24,78 @@ using Algorithms::Graph::Lian::Lian;
 using namespace Algorithms::Graph::Geometry;
 using namespace Algorithms::Graph::Map;
 using Algorithms::Graph::LianFunctions::Expand;
-
-
-using Algorithms::Graph::Lian::lineOfSight;
-using Algorithms::Graph::LianFunctions::validPath;
-
-
+using Algorithms::WindEffects::makeShade;
 
 int main() {
 
-	// --- initializing the matrix ---
 
-	int size_x = 1000, size_y = 1000, size_z = 1000;
+	// INIT
 
-	//double matrix[size][size][size];
+		cv::Mat rawImg = cv::imread(PATH_IMG, cv::IMREAD_COLOR);
+		cv::Mat rawImgSource = cv::imread(PATH_IMG_SOURCE, cv::IMREAD_COLOR);
 
-	double*** matrix = new double** [size_x];
-	for (int i = 0; i < size_x; ++i) {
-		matrix[i] = new double* [size_y];
-		for (int j = 0; j < size_y; ++j) {
-			matrix[i][j] = new double[size_z]();
-		}
+		// Points to find path for
+		Point start = Point(190, 310);
+		Point goal = Point(1287, 689);
+
+		// Params for path
+		int delta = 25;
+		int angle = 25;
+
+		// Is new version of algorithm? For basic Lian star = false;
+		bool star = true;
+
+		// Wind data
+		double scale = 3; // pixels in 1m
+		Vector direction(1, -1); // wind direction
+		double speed = 0; // wind speed
+	
+		// Name for output files
+		string note = "irk_";
+
+
+	// END INIT
+	if (rawImg.empty()) {
+
+		std::cerr << "Image not found!" << std::endl;
+
+		return -1;
 	}
 
-	for (int i = 0; i < size_x; i++) {
-		for (int j = 0; j < size_y; j++) {
-			for (int k = 0; k < size_z; k++) {
-				if (i > 200 && i < 350 && j > 200 && j < 350 && k > 200 && k < 350){
-					matrix[i][j][k] = 1;
-				}
-				else {
-					matrix[i][j][k] = 0;
-				}
-			}
-		}
-	}
-	
+	cv::Mat img;
 
-	// --- variables ---
+	cv::cvtColor(rawImg, img, cv::COLOR_BGR2GRAY);
 
-	Point start(14, 5, 7);
-	Point goal(450, 450, 450);
+	img.setTo(255, img > 200);
+	img.setTo(0, img != 255);
 
-	// --- testing ---
 
-	
+	std::vector<StagePoint> close;
+	std::map<Point, StagePoint> mapPath;
+
+	Vector wind = makeWindVector(scale, speed, direction);
+
+	img = makeShade(img, wind, scale);
+	Map mImg(img);
+	cv::cvtColor(rawImgSource, rawImgSource, cv::COLOR_BGR2GRAY);
+	rawImgSource = makeShade(rawImgSource, wind, scale);
+	cv::cvtColor(rawImgSource, rawImgSource, cv::COLOR_GRAY2BGR);
+	Map mImgSource(rawImgSource);
+
+
+
 	auto timer = std::chrono::steady_clock::now();
-	auto resPath = Lian(start, goal, matrix, size_x, size_y, size_z, 80, 25);
+	auto resPath = Lian(start, goal, mImg, mImgSource, delta, angle, wind, scale, star, note);
 
-
-	
+	for (auto&& point : resPath) {
+		cv::circle(mImg.getMap(), cv::Point(point.x, point.y), 3, cv::Scalar(100, 100, 100), -1);
+	}
 
 	std::cout << "Time code -> " << std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - timer).count() << std::endl;
-	
+
 	// --- end testing----
-	
+
+	imshow("Display window", img);
 	int k = cv::waitKey(0);
 
 	return 0;

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <opencv2/opencv.hpp>
 
@@ -23,8 +23,6 @@
 #include "Map.hpp"
 #include "Vector.hpp"
 
-
-
 using std::vector;
 using std::map;
 
@@ -42,19 +40,21 @@ namespace Algorithms {
 			using Algorithms::Graph::Geometry::distanceBetweenPoints;
 			using Algorithms::Graph::Geometry::angleBetweenVectors;
 
-			bool validPath(vector<Point> points, double*** image) {
+
+			// check if points are free on the image
+			bool validPath(vector<Point> points, Map<cv::Mat> image) {
 
 				for (auto&& point : points) {
-					if (image[point.x][point.y][point.z] > 0.8) {
+
+					if (!image.isFree(point))
 						return false;
-					}
 				}
 				return true;
 			}
 
-			void Expand(StagePoint start, double*** image, int size_x, int size_y, int size_z, StagePoint point, int deltaDist, int deltaAngle, std::set<StagePoint, Comparator::ComparatorStagePoint>& OPEN, const std::unordered_set<StagePoint, Hasher::StagePointHasher>& CLOSE, Point goal, std::map<Point, StagePoint>& mapPath) {
+			void Expand(StagePoint start, Map<cv::Mat> image, StagePoint point, int deltaDist, int deltaAngle, Vector wind, std::set<StagePoint, Comparator::ComparatorStagePoint>& OPEN, const std::unordered_set<StagePoint, Hasher::StagePointHasher>& CLOSE, Point goal, std::map<Point, StagePoint>& mapPath, bool star) {
 
-				//std::vector<StagePoint> points;
+
 
 				std::vector<Point> midpoints = Algorithms::Graph::Geometry::midpoint(point.point, deltaDist);
 
@@ -62,15 +62,15 @@ namespace Algorithms {
 					midpoints.push_back(goal);
 				}
 
+				// check every point on the circle
 				for (auto midpoint : midpoints) {
-					
-					if (midpoint.x < 0 || midpoint.x >= size_x ||
-						midpoint.y < 0 || midpoint.y >= size_y ||
-						midpoint.z < 0 || midpoint.z >= size_z ||
-						image[midpoint.x][midpoint.y][midpoint.z] > 0.8) {
+					if (midpoint.x < 0 || image.getMap().size().width <= midpoint.x ||
+						midpoint.y < 0 || image.getMap().size().height <= midpoint.y ||
+						!image.isFree(midpoint)) {
 						continue;
 					}
 
+					// angle limit
 					double angle = 0.0;
 					if (point.point != start.point) {
 						angle = angleBetweenVectors(point.parent, point.point, point.point, midpoint);
@@ -78,45 +78,63 @@ namespace Algorithms {
 					if (angle > deltaAngle)
 						continue;
 
-					// CHECK THIS
+					// check for obstacles
 					auto points_ = Algorithms::Graph::Geometry::lineOfSight(point.point, midpoint);
 					if (!validPath(points_, image))
 						continue;
 
-					if (CLOSE.contains({ midpoint, point.parent, 0.0, 0.0 })) {
+					if (CLOSE.contains({ midpoint, point.parent, 0.0, 0.0, 0.0 })) {
 
 						continue;
 					}
 
+					// wind offset
+					double offset;
+					if (image.getMap().at<uchar>(cv::Point(midpoint.x, midpoint.y)) == 100) {
+						offset = 0;
+					}
+					else {
+						Vector direction(midpoint.x - point.point.x, -(midpoint.y - point.point.y));
+						offset = (direction - wind).getMagnitude() - direction.getMagnitude();
+					}
+					offset = 0;
 
-					if (mapPath.contains(midpoint) && angle + point.sumAngles <= mapPath.at(midpoint).sumAngles) {
-					//if (mapPath.contains(midpoint) && distanceBetweenPoints(point.point, midpoint) + point.distance < mapPath.at(midpoint).distance) {
+
+					// priority in distance or angles
+					bool condition;
+					if (star) {
+						condition = mapPath.contains(midpoint) && angle + point.sumAngles <= mapPath.at(midpoint).sumAngles;
+					}
+					else {
+						condition = mapPath.contains(midpoint) && distanceBetweenPoints(point.point, midpoint) + point.distance < mapPath.at(midpoint).distance;
+					}
+
+					// adding to OPEN
+					if (condition) {
 						OPEN.erase(mapPath.at(midpoint));
 
 						mapPath.at(midpoint) = StagePoint(midpoint,
 							point.point,
 							distanceBetweenPoints(point.point, midpoint) + point.distance,
-							point.sumAngles + angle);
+							point.sumAngles + angle, point.wind + offset);
 
 						OPEN.insert(mapPath.at(midpoint));
-						//points.push_back(mapPath.at(midpoint));
 					}
 					if (!mapPath.contains(midpoint)) {
 						mapPath.insert({ midpoint, StagePoint(midpoint,
 							point.point,
 							distanceBetweenPoints(point.point, midpoint) + point.distance,
-							point.sumAngles + angle) });
+							point.sumAngles + angle, point.wind + offset) });
 
 						OPEN.insert(mapPath.at(midpoint));
-						//points.push_back(mapPath.at(midpoint));
 
 					}
 
 				}
-				//return points;
 
 			}
 
+			// getting the whole path from start to goal
 			vector<Point> unwindingPath(const map<Point, StagePoint>& mapPath, Point start, Point end) {
 
 				vector<Point> path;
@@ -165,7 +183,7 @@ namespace Algorithms {
 				auto path = unwindingPath(mapPath, start, current);
 				for (auto&& point : path) {
 
-					cv::circle(imgCopy, cv::Point(point.x, point.y), RADIUS +1, cv::Scalar(200, 0, 0), THICKNESS);
+					cv::circle(imgCopy, cv::Point(point.x, point.y), RADIUS + 1, cv::Scalar(200, 0, 0), THICKNESS);
 				}
 
 				cv::circle(imgCopy, cv::Point(goal.x, goal.y), RADIUS, cv::Scalar(), THICKNESS);
@@ -183,9 +201,9 @@ namespace Algorithms {
 
 				//while (isAction) {
 
-					showImage(drawStateOnImage(start, goal, current, img, false, OPEN, CLOSE, mapPath));
-					//std::this_thread::sleep_for(std::chrono::milliseconds(200));
-				//}
+				showImage(drawStateOnImage(start, goal, current, img, false, OPEN, CLOSE, mapPath));
+				//std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			//}
 			}
 			// functions for log
 
@@ -194,9 +212,10 @@ namespace Algorithms {
 				std::cout << "Points: " << path.points.size() << std::endl;	// log in console
 				std::cout << "Length: " << path.distance << std::endl;
 				std::cout << "SumAngles: " << path.sumAngles << std::endl;
+				std::cout << "Wind sum: " << path.windSum << std::endl;
 			}
 
-			void logFile(const std::string& fileName, const Path& path, int deltaDist, int deltaAngle, double codeTime, float KRatioDistance, float KRatioAngle) {
+			void logFile(const std::string& fileName, const Path& path, int deltaDist, int deltaAngle, Vector direction, double codeTime, float KRatioDistance, float KRatioAngle) {
 
 				std::ofstream outLogFile(fileName);
 
@@ -206,7 +225,7 @@ namespace Algorithms {
 
 				outLogFile << "Path Search Parameters:\n";
 				outLogFile << "Distance delta -> " << deltaDist << "\n";
-				outLogFile << "Angle delta -> " << deltaAngle << "°\n";
+				outLogFile << "Angle delta -> " << deltaAngle << "ï¿½\n";
 				outLogFile << "Ratio for distance delta -> " << KRatioDistance << "\n";
 				outLogFile << "Ratio for angle delta -> " << KRatioAngle << "\n";
 
@@ -214,7 +233,9 @@ namespace Algorithms {
 
 				outLogFile << "Path characteristics:\n";
 				outLogFile << "Distance -> " << std::to_string(path.distance) << "px\n";
-				outLogFile << "Sum angles -> " << std::to_string(path.sumAngles) << "°\n";
+				outLogFile << "Sum angles -> " << std::to_string(path.sumAngles) << "ï¿½\n";
+				outLogFile << "Wind sum -> " << std::to_string(path.windSum) << "ï¿½\n";
+				outLogFile << "Wind vector -> " << direction.to_string() << "ï¿½\n";
 
 
 				outLogFile << "----- ----- -----" << "\n";
@@ -226,7 +247,7 @@ namespace Algorithms {
 				outLogFile << "Points of path:\n";
 				for (auto&& point : path.points) {
 
-					outLogFile << point.x << " " << point.y << " " << point.z << "\n";
+					outLogFile << point.x << ", " << point.y << "\n";
 				}
 				outLogFile << "----- ----- -----" << "\n";
 			}

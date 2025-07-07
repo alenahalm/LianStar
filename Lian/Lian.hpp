@@ -1,6 +1,6 @@
 #pragma once
 
-#include <opencv2/opencv.hpp>
+#include "opencv2/opencv.hpp"
 
 #include <iostream>
 #include <algorithm>
@@ -18,16 +18,17 @@
 #include "Detail/Path.hpp"
 #include "Detail/Map.hpp"
 #include "Detail/Vector.hpp"
+#include "Detail/WindEffect.hpp"
 
 #include "detail/Geometry.hpp"
 #include "Detail/LianFunctions.hpp"
 
-#define DIR_RESULTS "./results/3d/"
+#define DIR_RESULTS "./results/eLian/"
 
-#define K_DELTA 1
-#define K_ANGLE 0.2
-
-
+// initializing priority factors 
+#define K_DELTA 1 // distance
+#define K_ANGLE 0.1 // angles
+#define K_WIND 0 // wind
 
 namespace Algorithms {
 
@@ -45,79 +46,82 @@ namespace Algorithms {
 			using LianFunctions::drawStateOnImage;
 			using LianFunctions::logConsole;
 			using LianFunctions::logFile;
+			using WindEffects::makeShade;
 
+			vector<Point> Lian(Point start_, Point goal_, Map<cv::Mat> img, Map<cv::Mat> drawImg, int deltaDist, int deltaAngle, Vector wind, double scale, bool star, std::string note) {
 
-			vector<Point> Lian(Point start_, Point goal_, double*** img, int size_x, int size_y, int size_z, int deltaDist, int deltaAngle) {
-
-
+				// assigning user-input values to factors
 				Comparator::goal = goal_;
 				Comparator::KDelta = K_DELTA;
-				Comparator::KAngle = K_ANGLE;
+				if (star) {
+					Comparator::KAngle = K_ANGLE;
+				}
+				else {
+					Comparator::KAngle = 0;
+				}
+				Comparator::KWind = K_WIND;
 
+				// INIT
 				set<StagePoint, Comparator::ComparatorStagePoint> OPEN;
 				unordered_set<StagePoint, Hasher::StagePointHasher> CLOSE;
 
 				//OPEN.reserve(100000);
 				CLOSE.reserve(100000);
 
-				StagePoint start(start_, Point(0, 0, 0), 0.0, 0.0),
-					goal(goal_, Point(0, 0, 0), DBL_MAX, DBL_MAX);
+				StagePoint start(start_, Point(0, 0), 0.0, 0.0, 0.0),
+					goal(goal_, Point(0, 0), DBL_MAX, DBL_MAX, 0.0);
 				OPEN.insert(start);
 
 				std::map<Point, StagePoint> mapPath;
 
 				int itCounter{ 0 };
-				//auto itCurrent = OPEN.begin();	// delete it and replace on obj downer
-				//auto itOpenSP = OPEN.begin();	// temp obj for find_if in loop
 				StagePoint currentSPoint = start;
 
 				vector<StagePoint> res;
 
 				int pathCounter{ 0 };
 				int totalQPath{ 0 };
-				Path bestPath({}, DBL_MAX, DBL_MAX);
+				Path bestPath({}, DBL_MAX, DBL_MAX, 0.0);
 
 				bool isAction{ true };
-				//std::thread t([&isAction, start_, goal_, &currentSPoint, img, &OPEN, &CLOSE, &mapPath]() {
-				//showImageThread(isAction, start_, goal_, currentSPoint.point, img, OPEN, CLOSE, mapPath);
-				//});
+
 
 				auto startTimer = std::chrono::steady_clock::now();
 				auto timer = std::chrono::steady_clock::now();
 
 				while (!OPEN.empty()) {
 
+					// get the next point
 					auto current = OPEN.extract(OPEN.begin());
 					currentSPoint = current.value();
 
+
+					// check if reached the goal
 					if (currentSPoint.point == goal.point) {
 
 						if (currentSPoint.sumAngles <= bestPath.sumAngles) {
 
 							++pathCounter;
-
-							std::string angle_check = "";
-							if (K_ANGLE > 0) {
-								angle_check = "angle";
+							/*if (star) {
+								note += "star";
 							}
-							
-							std::string note = std::to_string(size_x) + "_" + std::to_string(deltaDist) + "_" + angle_check;
-							std::cout << "Found path" << std::endl;
-							//std::cout << currentSPoint.point.x << " " << currentSPoint.point.x << " " << currentSPoint.point.x << " " << std::endl;
+							else {
+								note += "lian";
+							}*/
 
 							auto points = unwindingPath(mapPath, start_, goal_);	// save path
-							bestPath = Path(points, currentSPoint.distance, currentSPoint.sumAngles);
+							bestPath = Path(points, currentSPoint.distance, currentSPoint.sumAngles, currentSPoint.wind);
 
 							logConsole(bestPath);	// log in console
-							
+
 							double timeCode = std::chrono::duration <double, std::milli>(std::chrono::steady_clock::now() - startTimer).count() / 1000;	// time in seconds
-							logFile(DIR_RESULTS + note + ".txt", bestPath, deltaDist, deltaAngle, timeCode, K_DELTA, K_ANGLE);	// log in file
+							logFile(DIR_RESULTS + note + ".txt", bestPath, deltaDist, deltaAngle, wind, timeCode, K_DELTA, K_ANGLE);	// log in file
 
 							//auto imgPathSource = drawStateOnImage(start_, goal_, currentSPoint.point, drawImg, false, {}, {}, mapPath);
 							//saveImage(DIR_RESULTS + note + ".bmp", imgPathSource);	// save source image with path
 
-							//auto imgPath = drawStateOnImage(start_, goal_, currentSPoint.point, img, true, {}, {}, mapPath);
-							//saveImage(DIR_RESULTS + note + ".png", imgPath);	// save processing image with path
+							auto imgPath = drawStateOnImage(start_, goal_, currentSPoint.point, img, true, {}, {}, mapPath);
+							saveImage(DIR_RESULTS + note + ".png", imgPath);	// save processing image with path
 
 							return bestPath.points;
 						}
@@ -128,21 +132,22 @@ namespace Algorithms {
 						std::cout << "Total path found quantity: " << totalQPath << std::endl;
 					}
 
-					Expand(start, img, size_x, size_y, size_z, currentSPoint, deltaDist, deltaAngle, OPEN, CLOSE, goal_, mapPath);
+					// build the circle around current point
+					Expand(start, img, currentSPoint, deltaDist, deltaAngle, wind, OPEN, CLOSE, goal_, mapPath, star);
 
 					CLOSE.insert(currentSPoint);
 
+					// showing progress on image
 					if (std::chrono::duration <double, std::milli>
 						(std::chrono::steady_clock::now() - timer).count() > 1000) {
 
 						std::cout << "Iteration -> " << itCounter << std::endl;
 						// std::cout << "Offset -> " << currentSPoint.wind << std::endl;
-						//showImageThread(isAction, start_, goal_, currentSPoint.point, drawImg, OPEN, CLOSE, mapPath);
+						showImageThread(isAction, start_, goal_, currentSPoint.point, drawImg, OPEN, CLOSE, mapPath);
 						timer = std::chrono::steady_clock::now();
 					}
 
-					//if ((itCounter & 0x9B))	// log itCounter every 100 iterations
-						//std::cout << "Iteration -> " << itCounter << std::endl;
+
 
 					++itCounter;
 

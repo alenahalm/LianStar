@@ -14,16 +14,17 @@ namespace Comparator {
 	Point goal = Point(0, 0);
 	float KDelta = 1.0;
 	float KAngle = 0.0;
+	float KWind = 0.0;
 
 	struct ComparatorStagePoint {
 
 		bool operator()(const StagePoint& lhs, const StagePoint& rhs) const {
 
 			return (lhs.distance + distanceBetweenPoints(lhs.point, goal)) * KDelta
-				+ (lhs.sumAngles) * KAngle
+				+ (lhs.sumAngles) * KAngle + lhs.wind * KWind
 				<
 				(rhs.distance + distanceBetweenPoints(rhs.point, goal)) * KDelta
-				+ (rhs.sumAngles) * KAngle;
+				+ (rhs.sumAngles) * KAngle + rhs.wind * KWind;
 		}
 	};
 }
